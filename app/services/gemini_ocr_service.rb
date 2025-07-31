@@ -72,28 +72,42 @@ class GeminiOcrService
 
   def build_ocr_prompt
     <<~PROMPT
-      Please extract all visible text, data, and information from this document and return it as a well-structured JSON object.
+      Please extract RELEVANT data from this document and return it as a well-structured JSON object.
 
-      Instructions:
-      1. Extract ALL visible text including handwritten content, form fields, tables, headers, and any other readable information
-      2. Organize the data into logical key-value pairs with descriptive keys
-      3. Include numbers, dates, addresses, names, amounts, quantities, and any other structured data
-      4. For tables, extract each cell with appropriate keys
-      5. Make keys descriptive and human-readable (e.g., "customer_name", "invoice_date", "total_amount")
-      6. Preserve the original values but ensure they are clean and readable
-      7. If there are multiple similar items (like line items), number them (e.g., "item_1_description", "item_1_quantity")
+      IMPORTANT GUIDELINES:
+      1. Focus on TRANSACTIONAL and CUSTOMER-SPECIFIC data that varies between documents
+      2. EXCLUDE company branding, contact information, and boilerplate text
+      3. EXCLUDE standard disclaimers, cautions, terms & conditions, and legal text
+      4. EXCLUDE company addresses, phone numbers, emails, and website URLs
+      5. Include customer information, service details, amounts, quantities, dates, and reference numbers
+      6. Include any handwritten content or form field data
+      7. For tables, extract each meaningful row with appropriate keys
 
-      Return ONLY valid JSON with no additional text or explanation. The JSON should be a flat object with string keys and string values.
+      EXTRACT:
+      ✓ Customer names, addresses, contact details
+      ✓ Invoice/reference/tracking numbers#{'  '}
+      ✓ Dates, times, and deadlines
+      ✓ Service descriptions and specifications
+      ✓ Quantities, weights, measurements
+      ✓ Rates, amounts, charges, and totals
+      ✓ Origin and destination information
+      ✓ Item descriptions and categories
+      ✓ Any handwritten notes or special instructions
 
-      Example format:
+      DO NOT EXTRACT:
+      ✗ Company name, logo, or branding information
+      ✗ Company contact details (phone, email, address, website)
+      ✗ Standard disclaimers, terms, conditions, or legal text
+      ✗ Caution messages or warning text
+      ✗ Company registration details or certifications
+      ✗ Boilerplate text that appears on every document
+
+      Return ONLY valid JSON with descriptive keys and clean values. Use format:
       {
         "customer_name": "John Doe",
-        "invoice_number": "INV-2024-001",
-        "invoice_date": "01/15/2024",
-        "total_amount": "1,250.00",
-        "item_1_description": "Moving Services",
-        "item_1_quantity": "1",
-        "item_1_rate": "1000.00"
+        "reference_number": "INV-2024-001",#{' '}
+        "service_date": "01/15/2024",
+        "total_amount": "1,250.00"
       }
     PROMPT
   end

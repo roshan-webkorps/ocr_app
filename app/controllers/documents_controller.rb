@@ -48,7 +48,7 @@ class DocumentsController < ApplicationController
         document.file.attach(file)
         created_documents << document
 
-        DocumentProcessorJob.perform_async(document.id)
+        DocumentProcessorJob.perform_later(document.id)
       else
         errors << "#{file.original_filename}: #{document.errors.full_messages.join(', ')}"
       end

@@ -15,7 +15,6 @@ gem "rails", "~> 8.0.2"
 gem "redis"
 gem "sidekiq"
 gem "stimulus-rails"
-gem "turbo-rails"
 gem "tzinfo-data", platforms: %i[ windows jruby ]
 
 group :development, :test do

@@ -1,5 +1,5 @@
 class Document < ApplicationRecord
-  has_many :extracted_data, dependent: :destroy
+  has_many :extracted_data, class_name: "ExtractedData", dependent: :destroy
   has_one_attached :file
 
   validates :name, presence: true
