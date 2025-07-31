@@ -1,0 +1,15 @@
+import React from 'react'
+
+const ShowPage = ({ documentId }) => {
+  return (
+    <div className="space-y-6">
+      <h1 className="text-2xl font-bold text-gray-900">Document Details</h1>
+      <div className="bg-white p-6 rounded-lg shadow">
+        <p className="text-gray-600">Document ID: {documentId}</p>
+        <p className="text-gray-600">React components will be implemented in Phase 3</p>
+      </div>
+    </div>
+  )
+}
+
+export default ShowPage

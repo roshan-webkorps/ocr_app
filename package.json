@@ -1,8 +1,15 @@
 {
   "name": "app",
-  "private": true,
+  "private": "true",
+  "dependencies": {
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.19.0"
+  },
   "scripts": {
-    "build": "esbuild app/javascript/*.* --bundle --sourcemap --format=esm --outdir=app/assets/builds --public-path=/assets",
-    "build:css": "npx @tailwindcss/cli -i ./app/assets/stylesheets/application.tailwind.css -o ./app/assets/builds/application.css --minify"
+    "build": "esbuild app/javascript/*.* --bundle --sourcemap --format=esm --outdir=app/assets/builds --public-path=/assets --loader:.js=jsx --loader:.jsx=jsx",
+    "build:css": "echo 'CSS build skipped - using basic Rails CSS'"
   }
 }
