@@ -27,13 +27,11 @@ class DocumentsController < ApplicationController
     errors = []
 
     uploaded_files.each do |file|
-      # Validate file type
       unless valid_file_type?(file.content_type)
         errors << "#{file.original_filename}: Invalid file type. Only JPG, PNG, and PDF files are allowed."
         next
       end
 
-      # Validate file size (10MB limit)
       if file.size > 10.megabytes
         errors << "#{file.original_filename}: File too large. Maximum size is 10MB."
         next
@@ -49,8 +47,8 @@ class DocumentsController < ApplicationController
       if document.save
         document.file.attach(file)
         created_documents << document
-        # Queue processing job (will be implemented in Phase 2)
-        # DocumentProcessorJob.perform_async(document.id)
+
+        DocumentProcessorJob.perform_async(document.id)
       else
         errors << "#{file.original_filename}: #{document.errors.full_messages.join(', ')}"
       end
