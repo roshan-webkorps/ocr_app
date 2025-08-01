@@ -72,43 +72,93 @@ class GeminiOcrService
 
   def build_ocr_prompt
     <<~PROMPT
-      Please extract RELEVANT data from this document and return it as a well-structured JSON object.
+      You are an expert OCR specialist. Extract ALL data with PERFECT accuracy. Every character matters.
 
-      IMPORTANT GUIDELINES:
-      1. Focus on TRANSACTIONAL and CUSTOMER-SPECIFIC data that varies between documents
-      2. EXCLUDE company branding, contact information, and boilerplate text
-      3. EXCLUDE standard disclaimers, cautions, terms & conditions, and legal text
-      4. EXCLUDE company addresses, phone numbers, emails, and website URLs
-      5. Include customer information, service details, amounts, quantities, dates, and reference numbers
-      6. Include any handwritten content or form field data
-      7. For tables, extract each meaningful row with appropriate keys
+      CRITICAL RULES - FOLLOW EXACTLY:
 
-      EXTRACT:
-      ✓ Customer names, addresses, contact details
-      ✓ Invoice/reference/tracking numbers#{'  '}
-      ✓ Dates, times, and deadlines
-      ✓ Service descriptions and specifications
-      ✓ Quantities, weights, measurements
-      ✓ Rates, amounts, charges, and totals
-      ✓ Origin and destination information
-      ✓ Item descriptions and categories
-      ✓ Any handwritten notes or special instructions
+      1. FIELD NAMES: Use EXACT field labels from document - do NOT change, abbreviate, or "improve" them
+        - If document shows "NO, PNAI" → use "NO, PNAI" (exactly)
+        - If document shows "PARTY MOBILE NO." → use "PARTY MOBILE NO." (exactly)
+        - If document shows "CONSIGNOR'S NAME & ADDRESS:" → use "CONSIGNOR'S NAME & ADDRESS:" (exactly)
+        - Preserve ALL punctuation, spacing, and capitalization from original labels
 
-      DO NOT EXTRACT:
-      ✗ Company name, logo, or branding information
-      ✗ Company contact details (phone, email, address, website)
-      ✗ Standard disclaimers, terms, conditions, or legal text
-      ✗ Caution messages or warning text
-      ✗ Company registration details or certifications
-      ✗ Boilerplate text that appears on every document
+      2. TABLE EXTRACTION: Extract each cell individually, do NOT create JSON objects
+        - For table with columns: Number, Packages, Description, Actual, Charged, Private, Fixed, Amount Rs.
+        - Extract as: "row_1_number", "row_1_packages", "row_1_description", "row_1_actual", etc.
+        - Continue for ALL rows: row_2_number, row_2_packages, row_2_description, etc.
+        - Include empty cells as blank values
+        - Extract TOTAL field separately as "total_amount"
 
-      Return ONLY valid JSON with descriptive keys and clean values. Use format:
+      3. HANDWRITING ACCURACY: Read handwritten text character by character
+        - Take context into account (e.g., "Baylore" in India context = "Bangalore")
+        - Look for partial words and complete them logically
+        - Study cursive letters carefully - don't guess quickly
+        - If writing continues on next line, combine it
+
+      4. BLANK FIELDS: Include all field labels even if empty
+        - "CONSIGNOR'S NAME & ADDRESS:": "" (if blank)
+        - "CONSIGNEE NAME & ADDRESS:": "" (if blank)
+
+      EXTRACTION PROTOCOL:
+      1. Scan document top to bottom, left to right
+      2. Read EVERY field label exactly as written
+      3. Extract corresponding values (handwritten or printed)
+      4. For tables: extract each cell with proper row/column naming
+      5. Look for totals, signatures, and annotations
+      6. Double-check all handwritten text for accuracy
+
+      IGNORE ONLY:
+      ✗ Company letterhead (logos, company name in header)
+      ✗ Company contact info in header
+      ✗ Standard disclaimers like "Carrier is not responsible..."
+
+      EXTRACT EVERYTHING ELSE:
+      ✓ ALL form field labels and values (exact names)
+      ✓ ALL table data (individual cells, not JSON)
+      ✓ ALL handwritten text (read carefully)
+      ✓ ALL amounts, dates, numbers
+      ✓ ALL signatures and notes
+      ✓ Totals and calculations
+
+      TABLE PARSING EXAMPLE:
+      If you see table with columns: Number | Description | Actual | Amount
+      And rows:
+      1. | Item A | 5 | 100
+      2. | Item B | 3 | 150
+
+      Extract as:
       {
-        "customer_name": "John Doe",
-        "reference_number": "INV-2024-001",#{' '}
-        "service_date": "01/15/2024",
-        "total_amount": "1,250.00"
+        "row_1_number": "1",
+        "row_1_description": "Item A",
+        "row_1_actual": "5",
+        "row_1_amount": "100",
+        "row_2_number": "2",
+        "row_2_description": "Item B",
+        "row_2_actual": "3",
+        "row_2_amount": "150"
       }
+
+      HANDWRITING TIPS:
+      - "Baylore" in Indian context = "Bangalore"
+      - Look for city/place name patterns
+      - Consider document context when reading unclear text
+      - Combine partial words across lines
+      - Read signatures and totals carefully
+
+      FIELD NAME EXAMPLES (use exactly as shown in document):
+      - "NO, PNAI" (not "No Pnai" or "PNAI Number")
+      - "DATE" (not "Transaction Date")
+      - "PARTY MOBILE NO." (not "Party Mobile No")
+      - "Moving FROM" and "TO" (not "Moving From" and "Moving To")
+
+      QUALITY CHECK BEFORE RESPONDING:
+      1. Are field names EXACTLY as shown in document?
+      2. Is table data extracted as individual cells (not JSON)?
+      3. Did I read handwritten text carefully and logically?
+      4. Did I find all totals and amounts?
+      5. Are blank fields included with empty values?
+
+      Extract with PERFECT accuracy - use EXACT field names and read handwriting intelligently!
     PROMPT
   end
 

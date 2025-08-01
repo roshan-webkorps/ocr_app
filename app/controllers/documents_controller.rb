@@ -106,21 +106,38 @@ class DocumentsController < ApplicationController
 
   def download_original
     if @document.file.attached?
-      redirect_to rails_blob_path(@document.file, disposition: "attachment")
+      respond_to do |format|
+        format.html do
+          redirect_to rails_blob_path(@document.file, disposition: "attachment")
+        end
+        format.json do
+          render json: {
+            download_url: rails_blob_url(@document.file, disposition: "attachment"),
+            filename: @document.original_filename,
+            file_size: @document.file_size
+          }
+        end
+      end
     else
       respond_to do |format|
-        format.html { redirect_to documents_path, alert: "File not found." }
-        format.json { render json: { error: "File not found" }, status: :not_found }
+        format.html { redirect_to documents_path, alert: "Original file not found." }
+        format.json { render json: { error: "Original file not found" }, status: :not_found }
       end
     end
   end
 
   def download_excel
-    # Will be implemented in Phase 4
-    respond_to do |format|
-      format.html { redirect_to documents_path, alert: "Excel export not yet implemented." }
-      format.json { render json: { error: "Excel export not yet implemented" }, status: :not_implemented }
-    end
+    return redirect_to @document, alert: "No data available for export." unless @document.status == "completed" && @document.extracted_data.any?
+
+    excel_package = ExcelExportService.generate_excel(@document)
+    return redirect_to @document, alert: "Unable to generate Excel file." unless excel_package
+
+    filename = "#{@document.name.parameterize}_data.xlsx"
+
+    send_data excel_package.to_stream.read,
+              filename: filename,
+              type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+              disposition: "attachment"
   end
 
   private
