@@ -1,7 +1,7 @@
 class DocumentProcessorWorker
   include Sidekiq::Worker
 
-  sidekiq_options retry: 3, backtrace: true
+  sidekiq_options retry: 8, retry_in: proc { |count| 2 ** count }
 
   def perform(document_id)
     Rails.logger.info "Starting document processing for document #{document_id}"
