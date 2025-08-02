@@ -20,6 +20,9 @@ module OcrApp
 
     config.active_job.queue_adapter = :sidekiq
 
+    config.autoload_paths += %W[#{config.root}/app/workers]
+    config.eager_load_paths += %W[#{config.root}/app/workers]
+
     # Configuration for the application, engines, and railties goes here.
     #
     # These settings can be overridden in specific environments using the files
