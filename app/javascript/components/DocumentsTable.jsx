@@ -50,7 +50,7 @@ const DocumentsTable = ({ documents, onView, onEdit, onDelete, onRefresh }) => {
             <th>Status</th>
             <th>Size</th>
             <th>Uploaded</th>
-            <th>Actions</th>
+            <th style={{ width: '280px' }}>Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -72,25 +72,30 @@ const DocumentsTable = ({ documents, onView, onEdit, onDelete, onRefresh }) => {
               <td>{formatFileSize(document.file_size)}</td>
               <td>{formatDate(document.created_at)}</td>
               <td>
-                <div className="flex gap-2">
+                <div style={{ 
+                  display: 'flex', 
+                  gap: '0.5rem', 
+                  flexWrap: 'nowrap',
+                  minWidth: '280px'
+                }}>
                   <button
                     onClick={() => onView(document.id)}
                     className="btn"
-                    style={{ fontSize: '0.8rem', padding: '0.25rem 0.5rem' }}
+                    style={{ fontSize: '0.8rem', padding: '0.25rem 0.5rem', whiteSpace: 'nowrap' }}
                   >
                     View
                   </button>
                   <button
                     onClick={() => onEdit(document)}
                     className="btn btn-secondary"
-                    style={{ fontSize: '0.8rem', padding: '0.25rem 0.5rem' }}
+                    style={{ fontSize: '0.8rem', padding: '0.25rem 0.5rem', whiteSpace: 'nowrap' }}
                   >
                     Edit
                   </button>
                   <button
                     onClick={() => onDelete(document.id)}
                     className="btn btn-danger"
-                    style={{ fontSize: '0.8rem', padding: '0.25rem 0.5rem' }}
+                    style={{ fontSize: '0.8rem', padding: '0.25rem 0.5rem', whiteSpace: 'nowrap' }}
                   >
                     Delete
                   </button>
@@ -98,9 +103,14 @@ const DocumentsTable = ({ documents, onView, onEdit, onDelete, onRefresh }) => {
                     <a
                       href={`/documents/${document.id}/download_excel`}
                       className="btn btn-excel"
-                      style={{ fontSize: '0.8rem', padding: '0.25rem 0.5rem' }}
+                      style={{ 
+                        fontSize: '0.8rem', 
+                        padding: '0.25rem 0.5rem',
+                        whiteSpace: 'nowrap',
+                        textDecoration: 'none'
+                      }}
                     >
-                      Download Excel File
+                      Download Excel
                     </a>
                   )}
                 </div>

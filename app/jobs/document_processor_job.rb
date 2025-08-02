@@ -1,3 +1,5 @@
+require "sidekiq"
+
 class DocumentProcessorJob < ApplicationJob
   queue_as :default
 
