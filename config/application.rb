@@ -18,10 +18,7 @@ module OcrApp
     # Common ones are `templates`, `generators`, or `middleware`, for example.
     config.autoload_lib(ignore: %w[assets tasks])
 
-    config.active_job.queue_adapter = :sidekiq
-
-    config.autoload_paths += %W[#{config.root}/app/workers]
-    config.eager_load_paths += %W[#{config.root}/app/workers]
+    config.active_job.queue_adapter = :async
 
     # Configuration for the application, engines, and railties goes here.
     #
