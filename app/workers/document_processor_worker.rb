@@ -1,9 +1,11 @@
-require "sidekiq"
+class DocumentProcessorWorker
+  include Sidekiq::Worker
 
-class DocumentProcessorJob < ApplicationJob
-  queue_as :default
+  sidekiq_options retry: 3, backtrace: true
 
   def perform(document_id)
+    Rails.logger.info "Starting document processing for document #{document_id}"
+
     document = Document.find(document_id)
     document.mark_as_processing!
 
@@ -18,7 +20,9 @@ class DocumentProcessorJob < ApplicationJob
 
     rescue => e
       Rails.logger.error "Failed to process document #{document.id}: #{e.message}"
+      Rails.logger.error e.backtrace.join("\n")
       document.mark_as_failed!(e.message)
+      raise e
     end
   end
 
