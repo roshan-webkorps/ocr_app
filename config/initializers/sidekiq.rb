@@ -1,6 +1,8 @@
 require "sidekiq"
 require "sidekiq/api"
 
+Dir[Rails.root.join("app/workers/**/*.rb")].each { |f| require f }
+
 require "sidekiq/rails" if defined?(Rails)
 
 Sidekiq.configure_server do |config|
