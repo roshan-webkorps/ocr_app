@@ -1,4 +1,8 @@
 Rails.application.routes.draw do
+  get "login", to: "sessions#new"
+  post "login", to: "sessions#create"
+  delete "logout", to: "sessions#destroy"
+
   root "documents#index"
 
   resources :documents do
@@ -7,4 +11,6 @@ Rails.application.routes.draw do
       get :download_excel
     end
   end
+
+  get "up" => "rails/health#show", as: :rails_health_check
 end

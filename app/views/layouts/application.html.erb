@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>OCR App</title>
+    <title>OCR Document Processor</title>
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <%= csrf_meta_tags %>
     <%= csp_meta_tag %>
@@ -11,8 +11,61 @@
   </head>
 
   <body>
-    <main class="container">
+    <% if logged_in? %>
+      <header class="app-header">
+        <div class="container">
+          <div class="header-content">
+            <div class="header-left">
+              <h1 class="app-title">
+                <%= link_to root_path, class: "app-title-link" do %>
+                  Document Processor
+                <% end %>
+              </h1>
+            </div>
+            <div class="header-right">
+              <div class="user-info">
+                <span class="user-email">👤 <%= current_user.email %></span>
+                <%= button_to "Sign Out", logout_path, 
+                    method: :delete, 
+                    class: "btn btn-outline logout-btn",
+                    form: { style: "display: inline;" },
+                    data: { 
+                      confirm: "Are you sure you want to sign out?"
+                    } %>
+              </div>
+            </div>
+          </div>
+        </div>
+      </header>
+    <% end %>
+    
+    <main class="<%= logged_in? ? 'container' : 'login-main' %>">
+      <% flash.each do |type, message| %>
+        <div class="alert alert-<%= type == 'notice' ? 'success' : 'error' %>" data-auto-dismiss="5000">
+          <span><%= message %></span>
+          <button onclick="this.parentElement.remove()" class="alert-close" aria-label="Close">×</button>
+        </div>
+      <% end %>
+      
       <%= yield %>
     </main>
+    
+    <% if logged_in? %>
+      <script>
+        document.addEventListener('DOMContentLoaded', function() {
+          const alerts = document.querySelectorAll('[data-auto-dismiss]');
+          alerts.forEach(alert => {
+            const delay = parseInt(alert.dataset.autoDismiss);
+            setTimeout(() => {
+              if (alert.parentElement) {
+                alert.style.opacity = '0';
+                alert.style.transform = 'translateY(-10px)';
+                setTimeout(() => alert.remove(), 300);
+              }
+            }, delay);
+          });
+        });
+      </script>
+    <% end %>
   </body>
 </html>

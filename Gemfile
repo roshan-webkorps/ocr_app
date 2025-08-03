@@ -1,5 +1,6 @@
 source "https://rubygems.org"
 
+gem "bcrypt"
 gem "bootsnap", require: false
 gem "caxlsx"
 gem "caxlsx_rails"
