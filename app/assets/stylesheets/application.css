@@ -567,6 +567,8 @@ h3 {
   justify-content: space-between;
   align-items: center;
   font-weight: 500;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
 .alert-success {
@@ -1043,11 +1045,14 @@ h3 {
 
 /* Alert Styles for Login Page */
 .login-page .alert {
-  margin: 0 0 1.5rem 0;
-  padding: 1rem;
+  margin: 0 auto 1.5rem auto !important;
+  padding: 1rem !important;
   border-radius: 8px;
   font-weight: 500;
-  max-width: 480px;
+  max-width: 480px !important;
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
 }
 
 .login-page .alert-error {
@@ -1153,6 +1158,12 @@ h3 {
   font-weight: 500;
   transition: all 0.3s ease;
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+/* Login page alerts override */
+.login-page .alert {
+  max-width: 480px !important;
+  margin: 0 auto 1.5rem auto !important;
 }
 
 .alert-success {
@@ -1279,4 +1290,44 @@ h3 {
   .app-title {
     font-size: 1.2rem;
   }
+}
+
+.password-field-container {
+  position: relative;
+}
+
+.password-toggle-btn {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #6c757d;
+  font-size: 0.85rem;
+  font-weight: 500;
+  padding: 4px 8px;
+  line-height: 1;
+  transition: color 0.2s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.password-toggle-btn:hover {
+  color: #007bff;
+}
+
+.password-toggle-btn:focus {
+  outline: none;
+  color: #007bff;
+}
+
+html body .login-page .login-container .alert {
+  max-width: 480px !important;
+  width: 480px !important;
+  margin: 0 auto 1.5rem auto !important;
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
 }
