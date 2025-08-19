@@ -1,209 +1,203 @@
+require "ostruct"
+require "base64"
+require "httparty"
+require "mini_magick"
+require "json"
+
 class GeminiOcrService
   include HTTParty
 
-  base_uri "https://generativelanguage.googleapis.com"
+  base_uri "https://api.openai.com"
 
   def initialize
-    @api_key = ENV["GEMINI_API_KEY"]
-    raise "GEMINI_API_KEY environment variable is required" unless @api_key
+    @api_key = ENV["OPENAI_API_KEY"]
+    raise "OPENAI_API_KEY environment variable is required" unless @api_key
   end
 
+  # Public entry point: preprocess image, send to OpenAI, parse response
   def extract_data(document)
     return {} unless document.file.attached?
 
-    file_content = get_file_content(document)
-    response = send_to_gemini(file_content, document.content_type)
-    parse_gemini_response(response)
+    # 1. Download and preprocess image for better OCR
+    raw_data      = document.file.download
+    # processed_img = preprocess_image(raw_data)
+    file_content  = Base64.strict_encode64(raw_data)
+
+    # 2. Send to GPT-5-mini
+    response = send_to_openai(file_content, document.content_type)
+
+    # 3. Parse and clean JSON response
+    parse_openai_response(response)
   end
 
   private
 
-  def get_file_content(document)
-    file_data = document.file.download
-    Base64.strict_encode64(file_data)
+  # Adjust contrast, brightness, grayscale, and sharpen image for OCR
+  # Adjust contrast, brightness, grayscale, sharpen, and upscale image for OCR
+  def preprocess_image(raw_data)
+    image = MiniMagick::Image.read(raw_data)
+
+    # 1. Convert to grayscale (fast)
+    image.colorspace "Gray"
+
+    # 2. Simple contrast boost
+    image.level "0%,100%,1.2"    # only boost contrast, not full auto-level
+
+    # 3. Light sharpening (optional; remove to save time)
+    image.unsharp "0x0.5+0.5+0.02"
+
+    # 4. Ensure PNG for consistent encoding
+    image.format "png"
+    image.to_blob
   end
 
-  def send_to_gemini(file_content, content_type)
-    mime_type = case content_type
-    when "application/pdf"
-      "application/pdf"
-    when "image/jpeg", "image/jpg"
-      "image/jpeg"
-    when "image/png"
-      "image/png"
-    else
-      "image/jpeg"
-    end
+  # Build and send the chat completion request to GPT-5-mini
+  def send_to_openai(file_content, content_type)
+    supported = %w[image/jpeg image/jpg image/png image/gif image/webp]
+    return OpenStruct.new(success?: false) unless supported.include?(content_type)
 
     body = {
-      contents: [
+      model: "gpt-5-mini",
+      messages: [
         {
-          parts: [
+          role: "system",
+          content: "You are the world’s foremost OCR specialist. Extract ALL fields from this Indian transport form in the exact visual order (header → parties → cargo → charges → footer) with ≥95% character-level accuracy. Copy labels verbatim and interpret handwritten text meticulously."
+        },
+        {
+          role: "user",
+          content: [
+            { type: "text", text: build_gpt5_ocr_prompt },
             {
-              text: build_form_focused_prompt
-            },
-            {
-              inline_data: {
-                mime_type: mime_type,
-                data: file_content
+              type: "image_url",
+              image_url: {
+                url: "data:#{content_type};base64,#{file_content}",
+                detail: "high"
               }
             }
           ]
         }
       ],
-      generationConfig: {
-        temperature: 0.0,
-        maxOutputTokens: 4096,
-        responseMimeType: "application/json"
-      }
+      # temperature: 0.0,
+      max_completion_tokens: 20384,
+      response_format: { type: "json_object" }
     }
 
     options = {
       headers: {
-        "Content-Type" => "application/json"
+        "Content-Type"  => "application/json",
+        "Authorization" => "Bearer #{@api_key}"
       },
-      body: body.to_json,
-      timeout: 120
+      body:    body.to_json,
+      timeout: 180
     }
 
-    self.class.post("/v1beta/models/gemini-1.5-flash:generateContent?key=#{@api_key}", options)
+    response = self.class.post("/v1/chat/completions", options)
+    unless response.success?
+      Rails.logger.error "GPT-5-mini API error: #{response.body}"
+      return OpenStruct.new(success?: false, body: response.body)
+    end
+
+    generated = response.parsed_response.dig("choices", 0, "message", "content")
+    OpenStruct.new(
+      success?:        true,
+      parsed_response: { "choices" => [ { "message" => { "content" => generated } } ] }
+    )
   end
 
-  def build_form_focused_prompt
+  # Detailed prompt optimized for ≥90% overall and ≥95% handwritten accuracy
+  def build_gpt5_ocr_prompt
     <<~PROMPT
-      Extract ONLY the filled form data from this business document. Ignore all company header information.
+      You are the world’s leading OCR specialist for Indian transport forms. Your goal is to extract every field with ≥95% character-level accuracy, preserving the document’s original layout.
 
-      WHAT TO EXTRACT:
-      1. Form field labels and their handwritten/typed values
-      2. Table data with actual content
-      3. Document numbers, dates, and business details
-      4. Any totals or calculated amounts
+      1. Order & Structure
+        – Follow visual order: Header → Parties → Cargo → Charges → Footer.
+        – Divide into zones and process label then value line by line.
 
-      WHAT TO IGNORE:
-      - Company name and logo in header
-      - Contact information (phone, email, address in header)
-      - Legal disclaimers and caution text
-      - "Carrier is not responsible..." text
-      - Company registration details
+      2. Label Fidelity
+        – Copy printed labels verbatim (including punctuation, apostrophes, ampersands, colons, spacing).
+        – Keys in JSON must match labels exactly.
 
-      EXTRACTION RULES:
-      1. Use exact field labels as shown on the form
-      2. Read handwritten text carefully - use Indian context for place names
-      3. For tables: combine related data from multiple rows into single values
-      4. Convert arrays and lists to comma-separated text
-      5. All text is in English
-      6. Return clean, readable values without extra formatting
+      3. Handwritten Text
+        – Transcribe every handwritten stroke.
+        – If unclear, output best guess and append " (illegible)".
+        – Use context, repeated occurrences, and common Indian names/places (–kar, –pur, –nagar) to disambiguate.
 
-      HANDWRITING FOCUS:
-      - Look at cursive writing carefully
-      - Common Indian cities: Ranchi, Patna, Bangalore, Mumbai, Delhi
-      - Numbers: read each digit clearly
-      - Combine text that continues on next line
+      4. Numeric Verification
+        – Cross-check LR No, GC No, dates, and numeric fields if they repeat.
+        – Sum all charge rows; ensure they match the grand total. If not, re-OCR mismatched fields.
 
-      TABLE HANDLING:
-      - Combine multiple table rows into single field values
-      - Example: if table has rows "1, 2" and "3, 4" for Number column, return "1, 2, 3, 4"
-      - For descriptions: combine all descriptions with commas
-      - Extract totals and amounts as single numbers
+      5. Spelling & Codes
+        – Correct obvious printed-text OCR typos.
+        – Never alter alphanumeric codes (GST, MR No, reference numbers) except to fix clear stroke errors.
 
-      OUTPUT FORMAT:
-      Return clean JSON with readable string values, not arrays or formatted lists.
-      Example: "Number": "1, 2" not "Number": ["1", "2"]
+      6. Output Requirements
+        – Return only valid JSON: a flat object with keys exactly as labels and values extracted (empty strings for blank fields).
+        – Do not include confidence scores, commentary, or promotional/company info.
 
-      Focus on creating clean, UI-friendly output.
+      QUALITY TARGET: ≥95% accuracy on printed text, ≥95% on handwritten text, complete coverage of all visible fields.
     PROMPT
   end
 
-  def parse_gemini_response(response)
+  # Parse, extract JSON, clean out unwanted fields, and return hash
+  def parse_openai_response(response)
     return {} unless response.success?
+    text = response.parsed_response.dig("choices", 0, "message", "content")
+    return {} unless text
 
-    begin
-      response_body = response.parsed_response
-      generated_text = response_body.dig("candidates", 0, "content", "parts", 0, "text")
+    json_str = extract_json_from_response(text)
+    data     = JSON.parse(json_str) rescue {}
+    return {} unless data.is_a?(Hash)
 
-      return {} unless generated_text
-
-      json_text = extract_json_from_response(generated_text)
-      parsed_data = JSON.parse(json_text)
-
-      return {} unless parsed_data.is_a?(Hash)
-
-      clean_form_data(parsed_data)
-
-    rescue JSON::ParserError => e
-      Rails.logger.error "Failed to parse Gemini response as JSON: #{e.message}"
-      Rails.logger.error "Response text: #{generated_text}"
-      {}
-    rescue => e
-      Rails.logger.error "Error processing Gemini response: #{e.message}"
-      {}
-    end
+    clean_form_data(data)
   end
 
+  # Extract pure JSON substring from possible markdown fences
   def extract_json_from_response(text)
-    json_text = text.strip
-    json_text = json_text.gsub(/^```json\s*\n?/, "").gsub(/\n?\s*```$/, "")
-    json_text = json_text.gsub(/^```\s*\n?/, "").gsub(/\n?\s*```$/, "")
-
-    start_brace = json_text.index("{")
-    end_brace = json_text.rindex("}")
-
-    if start_brace && end_brace && end_brace > start_brace
-      json_text = json_text[start_brace..end_brace]
-    end
-
-    json_text.strip
+    t = text.strip
+    # Remove markdown fences (```json ... ```) and any backticks
+    t.gsub!(/^```(?:json)?\s*\n?/, "")        # Remove starting fence with optional 'json'
+    t.gsub!(/\n?```$/, "")                     # Remove ending fence
+    # Alternatively, handle code fences more broadly:
+    # t.gsub!(/^```.*$\n?/, '') # If fence line starts with ```AnyText
+    start_idx = t.index("{")
+    end_idx   = t.rindex("}")
+    return t if start_idx.nil? || end_idx.nil?
+    t[start_idx..end_idx].strip
   end
 
+  # Remove empty values and company branding fields
   def clean_form_data(data)
     cleaned = {}
-
-    data.each do |key, value|
-      clean_key = key.to_s.strip
-      clean_value = process_value(value)
-
-      next if clean_key.empty? || clean_value.empty?
-
-      next if is_company_info?(clean_key, clean_value)
-
-      cleaned[clean_key] = clean_value
+    data.each do |k, v|
+      key   = k.to_s.strip
+      value = process_value(v)
+      next if key.empty? || value.empty?
+      next if is_company_info?(key, value)
+      cleaned[key] = value
     end
-
     cleaned
   end
 
-  def process_value(value)
-    case value
+  # Normalize arrays & strings
+  def process_value(val)
+    case val
     when Array
-      processed_items = value.map do |item|
-        clean_item = item.to_s.strip.gsub(/^["']|["']$/, "") # Remove quotes
-        clean_item
-      end.reject(&:empty?)
-
-      processed_items.join(", ")
+      val.map { |i| i.to_s.strip.gsub(/^["']|["']$/, "").gsub(/\s+\(.*\)$/, "") }.reject(&:empty?).join(", ")
     when String
-      clean_value = value.strip
-      clean_value = clean_value.gsub(/^\[|\]$/, "")
-      clean_value = clean_value.gsub(/^["']|["']$/, "")
-      clean_value = clean_value.gsub(/", "/, ", ")
-      clean_value = clean_value.gsub(/'\s*,\s*'/, ", ")
-      clean_value
+      v = val.strip
+      v = v.gsub(/^\[|\]$/, "")
+      v = v.gsub(/^["']|["']$/, "")
+      v = v.gsub(/\s+\(.*\)$/, "") # Remove confidence scores
+      v.gsub(/", "/, ", ").gsub(/'\s*,\s*'/, ", ")
     else
-      value.to_s.strip
+      val.to_s.strip
     end
   end
 
+  # Filter out company promotional info
   def is_company_info?(key, value)
-    key_lower = key.downcase
-    value_lower = value.downcase
-
-    company_terms = [
-      "century packers", "specialist", "survey no", "email", "website",
-      "tel:", "mob:", "gmail.com", "www.", "caution", "carrier is not",
-      "breakage", "leakages", "subject to pune", "consionent copy",
-      "century", "specialist of house", "door & door", "regd"
-    ]
-
-    company_terms.any? { |term| key_lower.include?(term) || value_lower.include?(term) }
+    kp = key.downcase; vp = value.downcase
+    terms = %w[dilipl roadlines agarwal packers website email tel mob gmail.com www caution carrier breakage leakages subject regd nse iso limca world book brand toll phone]
+    terms.any? { |t| kp.include?(t) || vp.include?(t) }
   end
 end
